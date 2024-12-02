@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textract Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2em auto;
+            max-width: 600px;
+            text-align: center;
+        }
+        input, button {
+            margin: 10px 0;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            white-space: pre-wrap;
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Extract Text from Images</h1>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" accept="image/*" required />
+        <button type="submit">Upload and Extract Text</button>
+    </form>
+    <h2>Extracted Text:</h2>
+    <div id="output"></div>
+</body>
+<script>
+    let UPLOAD_BUCKET = '';
+    let API_URL = '';
+
+    // Fetch configuration from config.json
+    fetch('config.json')
+        .then(response => response.json())
+        .then(config => {
+            UPLOAD_BUCKET = config.UPLOAD_BUCKET;
+            API_URL = config.API_URL;
+        })
+        .catch(err => console.error('Error loading config:', err));
+
+    document.getElementById('uploadForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Please select a file!');
+            return;
+        }
+
+        try {
+            // Upload file to S3
+            const uploadResponse = await fetch(UPLOAD_BUCKET + file.name, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': file.type
+                }
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('File upload failed.');
+            }
+
+            // Fetch extracted text from API Gateway
+            const response = await fetch(`${API_URL}?fileKey=${file.name}`);
+            const data = await response.json();
+
+            // Display extracted text
+            document.getElementById('output').textContent = data.extracted_text || 'No text found.';
+        } catch (error) {
+            console.error(error);
+            alert('An error occurred. Please try again.');
+        }
+    });
+</script>
+</html>
