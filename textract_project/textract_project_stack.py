@@ -2,12 +2,12 @@ from aws_cdk import (
     Stack,
     aws_s3 as s3,
     aws_lambda as _lambda,
-    aws_s3_notifications as s3_notifications,
     aws_iam as iam,
     aws_s3_deployment as s3_deployment,
     RemovalPolicy,
     aws_apigateway as apigateway,
     CfnOutput,
+    Duration,  # Import Duration
 )
 from constructs import Construct
 import json
@@ -68,13 +68,19 @@ class TextractProjectStack(Stack):
         )
 
         # Lambda Function to Process Files
+        # Lambda Function to Process Files
         textract_lambda = _lambda.Function(
             self,
             "TextractProcessingLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="lambda_function.handler",
             code=_lambda.Code.from_asset("lambda"),
+            environment={
+                'UPLOAD_BUCKET': self.uploads_bucket.bucket_name
+            },
+            timeout=Duration.seconds(15)  # Increase timeout as needed
         )
+
         
         # Grant Permissions to Lambda
         self.uploads_bucket.grant_read(textract_lambda)
@@ -86,11 +92,6 @@ class TextractProjectStack(Stack):
         )
 
         # Trigger Lambda on S3 Object Upload
-        self.uploads_bucket.add_event_notification(
-            s3.EventType.OBJECT_CREATED,
-            s3_notifications.LambdaDestination(textract_lambda)
-        )
-
         # API Gateway to Expose Lambda
         api = apigateway.LambdaRestApi(
             self,

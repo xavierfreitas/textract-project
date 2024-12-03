@@ -1,16 +1,37 @@
 import boto3
 import json
+import os
+from botocore.exceptions import ClientError
 
 def handler(event, context):
     # Initialize Textract client
     textract = boto3.client('textract')
 
-    # Parse S3 event to get bucket name and file key
-    for record in event['Records']:
-        bucket_name = record['s3']['bucket']['name']
-        file_key = record['s3']['object']['key']
+    # Get the bucket name from environment variable
+    bucket_name = os.environ['UPLOAD_BUCKET']
 
-        print(f"Processing file {file_key} from bucket {bucket_name}")
+    # Get 'fileKey' from query parameters
+    file_key = None
+
+    if 'queryStringParameters' in event and event['queryStringParameters']:
+        file_key = event['queryStringParameters'].get('fileKey')
+    
+    if not file_key:
+        return {
+            'statusCode': 400,
+            'body': json.dumps({'error': 'fileKey parameter is required'}),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+        }
+
+    print(f"Processing file {file_key} from bucket {bucket_name}")
+
+    try:
+        # Check if the file exists in S3
+        s3 = boto3.client('s3')
+        s3.head_object(Bucket=bucket_name, Key=file_key)
 
         # Call Textract to analyze the document
         response = textract.detect_document_text(
@@ -31,8 +52,43 @@ def handler(event, context):
         print("Extracted Text:")
         print(extracted_text)
 
-        # Return the extracted text as a log (or process it further)
+        # Return the extracted text
         return {
             'statusCode': 200,
-            'body': json.dumps({'extracted_text': extracted_text})
+            'body': json.dumps({'extracted_text': extracted_text}),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+        }
+    except ClientError as e:
+        if e.response['Error']['Code'] == '404':
+            print(f"File {file_key} not found in bucket {bucket_name}")
+            return {
+                'statusCode': 404,
+                'body': json.dumps({'error': 'File not found'}),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            }
+        else:
+            print(f"Error accessing file {file_key}: {str(e)}")
+            return {
+                'statusCode': 500,
+                'body': json.dumps({'error': 'Error accessing file'}),
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            }
+    except Exception as e:
+        print(f"Error processing file {file_key}: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'error': 'Failed to process file'}),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
         }
