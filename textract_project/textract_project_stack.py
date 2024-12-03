@@ -7,17 +7,38 @@ from aws_cdk import (
     RemovalPolicy,
     aws_apigateway as apigateway,
     CfnOutput,
-    Duration,  # Import Duration
+    Duration, 
 )
 from constructs import Construct
 import json
+
+
+'''
+format: we define the project stack via python class with services, cdk deploy runs throug app.py, creates project stack
+
+architecture: 
+    - we can deploy with an s3 bucket, just need two buckets in this case, one for uploads and one for the frontend
+    - lambda is set to trigger when an item enters the bucket, that item is sent to textract via its api
+
+'''
+
 
 class TextractProjectStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # S3 Bucket for User Uploads
+        # defined bucket for uploads
+        # parameters for the constructor:
+        #   scope: the scope in which this resource is defined.
+        #   id: id of reseource
+        #   bucket_name: name of buket
+        #   versioned: TODO: versioning?
+        #   removal_policy: set to remove on stack deletion
+        #   auto_delete_objects: delete objects within the bucket when the bucket is deleted
+        #   cors: Cross-Origin Resource Sharing (CORS) configuration
+        #   block_public_access: public access settings for the bucket
+
         self.uploads_bucket = s3.Bucket(
             self,
             "TextractUploadsBucket",
@@ -40,17 +61,26 @@ class TextractProjectStack(Stack):
             ),
         )
 
-        # Allow public uploads (for testing purposes)
+        # sets the policy for the bucket
+        # NOTE: this might run into an issue with a precreated bucket but in this case,
+        #       created dynamically
         self.uploads_bucket.add_to_resource_policy(
+            # add iam statement
+            # we want to allow PutObject to the s3 bucket
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 principals=[iam.AnyPrincipal()],
                 actions=["s3:PutObject"],
                 resources=[self.uploads_bucket.arn_for_objects("*")],
+                # NOTE: resources says what items the defined policy refers to
+                #       in this case, all
+                #       defualt naming scheme usually: arn:partition:service:region:account-id:resource
             )
         )
 
-        # S3 Bucket for Frontend Hosting
+
+        # frontend bucket
+        # see previous bucekt for parameters
         self.frontend_bucket = s3.Bucket(
             self,
             "TextractFrontendBucket",
@@ -67,9 +97,14 @@ class TextractProjectStack(Stack):
             auto_delete_objects=True
         )
 
-        # Lambda Function to Process Files
-        # Lambda Function to Process Files
-        textract_lambda = _lambda.Function(
+
+
+
+        # lambda function
+        #   runtime: No default value. You must specify the runtime environment for the Lambda function (e.g., Runtime.PYTHON_3_9).
+        #   handler: No default value. You must specify the handler for the Lambda function (e.g., lambda_function.handler).
+        #   code: No default value. You must specify the code for the Lambda function (e.g., Code.from_asset("lambda")).
+        #         textract_lambda = _lambda.Function(
             self,
             "TextractProcessingLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
