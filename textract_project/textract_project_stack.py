@@ -7,7 +7,7 @@ from aws_cdk import (
     RemovalPolicy,
     aws_apigateway as apigateway,
     CfnOutput,
-    Duration,  # Import Duration
+    Duration,
 )
 from constructs import Construct
 import json
@@ -68,7 +68,6 @@ class TextractProjectStack(Stack):
         )
 
         # Lambda Function to Process Files
-        # Lambda Function to Process Files
         textract_lambda = _lambda.Function(
             self,
             "TextractProcessingLambda",
@@ -124,13 +123,7 @@ class TextractProjectStack(Stack):
         # Outputs
         CfnOutput(
             self,
-            "FrontendBucketURL",
+            "FrontendWebsiteURL",
             value=self.frontend_bucket.bucket_website_url,
             description="URL for the hosted front-end website"
-        )
-        CfnOutput(
-            self,
-            "APIGatewayURL",
-            value=api.url,
-            description="The dynamically generated API Gateway URL"
         )
