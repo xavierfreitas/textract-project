@@ -11,7 +11,6 @@ from aws_cdk import (
 )
 from constructs import Construct
 import json
-import os
 
 class TextractProjectStack(Stack):
 
@@ -25,7 +24,30 @@ class TextractProjectStack(Stack):
             bucket_name="textract-uploads-bucket",
             versioned=True,
             removal_policy=RemovalPolicy.DESTROY,
-            auto_delete_objects=True
+            auto_delete_objects=True,
+            cors=[
+                s3.CorsRule(
+                    allowed_methods=[s3.HttpMethods.PUT],
+                    allowed_origins=["*"],
+                    allowed_headers=["*"],
+                )
+            ],
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=False,
+                block_public_policy=False,
+                ignore_public_acls=False,
+                restrict_public_buckets=False,
+            ),
+        )
+
+        # Allow public uploads (for testing purposes)
+        self.uploads_bucket.add_to_resource_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                principals=[iam.AnyPrincipal()],
+                actions=["s3:PutObject"],
+                resources=[self.uploads_bucket.arn_for_objects("*")],
+            )
         )
 
         # S3 Bucket for Frontend Hosting
@@ -35,7 +57,12 @@ class TextractProjectStack(Stack):
             bucket_name="textract-frontend-bucket",
             website_index_document="index.html",
             public_read_access=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ACLS,
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=False,
+                block_public_policy=False,
+                ignore_public_acls=False,
+                restrict_public_buckets=False,
+            ),
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True
         )
@@ -48,7 +75,7 @@ class TextractProjectStack(Stack):
             handler="lambda_function.handler",
             code=_lambda.Code.from_asset("lambda"),
         )
-
+        
         # Grant Permissions to Lambda
         self.uploads_bucket.grant_read(textract_lambda)
         textract_lambda.add_to_role_policy(
@@ -76,21 +103,20 @@ class TextractProjectStack(Stack):
             }
         )
 
-        # Dynamically Generate Config.json
-        config = {
-            "UPLOAD_BUCKET": f"https://{self.uploads_bucket.bucket_name}.s3.amazonaws.com/",
-            "API_URL": api.url
-        }
-        config_path = "./frontend/config.json"
-        os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        with open(config_path, "w") as config_file:
-            json.dump(config, config_file)
-
-        # Deploy Frontend Files
+        # Deploy Frontend Files with Dynamic Config
         s3_deployment.BucketDeployment(
             self,
             "DeployFrontendFiles",
-            sources=[s3_deployment.Source.asset("./frontend")],
+            sources=[
+                s3_deployment.Source.asset("./frontend", exclude=["config.json"]),
+                s3_deployment.Source.data(
+                    "config.json",
+                    json.dumps({
+                        "UPLOAD_BUCKET": f"https://{self.uploads_bucket.bucket_name}.s3.amazonaws.com/",
+                        "API_URL": api.url
+                    })
+                )
+            ],
             destination_bucket=self.frontend_bucket,
         )
 
