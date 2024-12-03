@@ -18,7 +18,7 @@ class TextractProjectStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # S3 Bucket for Storing User Uploads
+        # S3 Bucket for User Uploads
         self.uploads_bucket = s3.Bucket(
             self,
             "TextractUploadsBucket",
@@ -28,19 +28,19 @@ class TextractProjectStack(Stack):
             auto_delete_objects=True
         )
 
-        # S3 Bucket for Hosting Front-End Website
+        # S3 Bucket for Frontend Hosting
         self.frontend_bucket = s3.Bucket(
             self,
             "TextractFrontendBucket",
             bucket_name="textract-frontend-bucket",
             website_index_document="index.html",
             public_read_access=True,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ACLS,  # Allow public access for objects
+            block_public_access=s3.BlockPublicAccess.BLOCK_ACLS,
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True
         )
 
-        # Lambda Function to Process Files with Textract
+        # Lambda Function to Process Files
         textract_lambda = _lambda.Function(
             self,
             "TextractProcessingLambda",
@@ -49,10 +49,8 @@ class TextractProjectStack(Stack):
             code=_lambda.Code.from_asset("lambda"),
         )
 
-        # Grant Read Access to Lambda for Uploads Bucket
+        # Grant Permissions to Lambda
         self.uploads_bucket.grant_read(textract_lambda)
-
-        # Grant Textract Permissions to Lambda Function
         textract_lambda.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["textract:*"],
@@ -60,21 +58,25 @@ class TextractProjectStack(Stack):
             )
         )
 
-        # Trigger Lambda Function on File Uploads
+        # Trigger Lambda on S3 Object Upload
         self.uploads_bucket.add_event_notification(
             s3.EventType.OBJECT_CREATED,
             s3_notifications.LambdaDestination(textract_lambda)
         )
 
-        # API Gateway to Expose Lambda Function
+        # API Gateway to Expose Lambda
         api = apigateway.LambdaRestApi(
             self,
             "TextractAPI",
             handler=textract_lambda,
-            proxy=True
+            proxy=True,
+            default_cors_preflight_options={
+                "allow_origins": apigateway.Cors.ALL_ORIGINS,
+                "allow_methods": apigateway.Cors.ALL_METHODS,
+            }
         )
 
-        # Generate config.json dynamically
+        # Dynamically Generate Config.json
         config = {
             "UPLOAD_BUCKET": f"https://{self.uploads_bucket.bucket_name}.s3.amazonaws.com/",
             "API_URL": api.url
@@ -84,7 +86,7 @@ class TextractProjectStack(Stack):
         with open(config_path, "w") as config_file:
             json.dump(config, config_file)
 
-        # Deploy front-end files (including config.json)
+        # Deploy Frontend Files
         s3_deployment.BucketDeployment(
             self,
             "DeployFrontendFiles",
