@@ -10,8 +10,9 @@ body {
 /* Wrapper Styles */
 #wrapper {
     width: 80%;
-    height: 800px;
-    border: rgb(29, 145, 29) 4px solid; /* dark green border */
+    min-height: 800px;
+    max-height: 1600px;
+    border: rgb(29, 145, 29) 4px solid; /* Dark green border */
     border-radius: 40px;
     background-color: #FCFFF6; /* Soft white background */
 }
@@ -21,7 +22,7 @@ body {
     margin: 20px auto;
     padding: 15px;
     border-radius: 50px;
-    border: rgb(29, 145, 29) 3px solid; /* dark green border */
+    border: rgb(29, 145, 29) 3px solid; /* Dark green border */
     background-color: #E2F2CE; /* Dark green background */
     color: black; /* White text */
     font-size: 1.5em;
@@ -32,14 +33,14 @@ body {
 input, button {
     margin: 10px 0;
     padding: 10px 15px;
-    border: #B22222 2px solid; /* Firebrick red border */
+    border: #B22222 2px solid; /* Dark red border */
     border-radius: 5px;
     font-size: 1em;
 }
 
 /* File Input */
 input {
-    background-color: #FFD700; /* Gold background */
+    background-color: #FFD700; /* Gold-ish background */
     color: #0B6623; /* Dark green text */
     cursor: pointer;
     transition: transform 0.3s ease, background-color 0.3s ease; /* Smooth transition for scaling and color */
@@ -52,7 +53,7 @@ input:hover {
 
 /* Submit Button */
 button {
-    background-color: #B22222; /* Firebrick red background */
+    background-color: #B22222; /* Darker red background */
     color: white;
     cursor: pointer;
     transition: transform 0.3s ease, background-color 0.3s ease; /* Smooth transition for scaling and color */
@@ -67,11 +68,13 @@ button:hover {
 #output {
     margin: 20px auto;
     max-width: 600px;
+    max-height: 800px;
     overflow-y: auto;
     padding: 10px;
     border: #0B6623 1px solid; /* Dark green border */
     border-radius: 5px;
     white-space: pre-wrap;
-    background: #FFE4E1; /* Misty rose background */
+    background: #FFE4E1; /* Soft white background */
     color: #0B6623; /* Dark green text */
+    text-align: left;
 }

@@ -8,6 +8,7 @@ from aws_cdk import (
     aws_apigateway as apigateway,
     CfnOutput,
     Duration, 
+    Duration,
 )
 from constructs import Construct
 import json
@@ -97,14 +98,9 @@ class TextractProjectStack(Stack):
             auto_delete_objects=True
         )
 
-
-
-
-        # lambda function
-        #   runtime: No default value. You must specify the runtime environment for the Lambda function (e.g., Runtime.PYTHON_3_9).
-        #   handler: No default value. You must specify the handler for the Lambda function (e.g., lambda_function.handler).
-        #   code: No default value. You must specify the code for the Lambda function (e.g., Code.from_asset("lambda")).
-        #         textract_lambda = _lambda.Function(
+        # Lambda Function to Process Files
+        # Lambda Function to Process Files
+        textract_lambda = _lambda.Function(
             self,
             "TextractProcessingLambda",
             runtime=_lambda.Runtime.PYTHON_3_9,
@@ -159,13 +155,7 @@ class TextractProjectStack(Stack):
         # Outputs
         CfnOutput(
             self,
-            "FrontendBucketURL",
+            "FrontendWebsiteURL",
             value=self.frontend_bucket.bucket_website_url,
             description="URL for the hosted front-end website"
-        )
-        CfnOutput(
-            self,
-            "APIGatewayURL",
-            value=api.url,
-            description="The dynamically generated API Gateway URL"
         )
