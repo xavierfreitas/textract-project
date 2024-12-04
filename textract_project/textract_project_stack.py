@@ -98,50 +98,54 @@ class TextractProjectStack(Stack):
             auto_delete_objects=True
         )
 
-        # Lambda Function to Process Files
-        # Lambda Function to Process Files
+
+
         textract_lambda = _lambda.Function(
             self,
-            "TextractProcessingLambda",
-            runtime=_lambda.Runtime.PYTHON_3_9,
-            handler="lambda_function.handler",
-            code=_lambda.Code.from_asset("lambda"),
-            environment={
+            "TextractProcessingLambda",             # id
+            runtime=_lambda.Runtime.PYTHON_3_9,     # runtime
+            handler="lambda_function.handler",      # handler
+            code=_lambda.Code.from_asset("lambda"), # source code of lambda, assume directly sees folder name
+            environment={                           # set env variable
                 'UPLOAD_BUCKET': self.uploads_bucket.bucket_name
             },
-            timeout=Duration.seconds(15)  # Increase timeout as needed
+            timeout=Duration.seconds(15)  # cancels after 15 seconds
         )
 
         
-        # Grant Permissions to Lambda
+        # set policy statement for lambda
+        # NOTE: arg defined right before
         self.uploads_bucket.grant_read(textract_lambda)
         textract_lambda.add_to_role_policy(
+            # we are just setting to all for this polciy, other more specifics may break the code
             iam.PolicyStatement(
-                actions=["textract:*"],
+                actions=["textract:*"], 
                 resources=["*"]
             )
         )
 
-        # Trigger Lambda on S3 Object Upload
-        # API Gateway to Expose Lambda
+
+        # lambda API setup
         api = apigateway.LambdaRestApi(
             self,
             "TextractAPI",
             handler=textract_lambda,
             proxy=True,
             default_cors_preflight_options={
-                "allow_origins": apigateway.Cors.ALL_ORIGINS,
-                "allow_methods": apigateway.Cors.ALL_METHODS,
+                "allow_origins": apigateway.Cors.ALL_ORIGINS, # anything can access
+                "allow_methods": apigateway.Cors.ALL_METHODS, # allows all HTTP methods like GET, POST, PUT, DELETE,
             }
         )
 
-        # Deploy Frontend Files with Dynamic Config
+
+
+        # dynamic frontend deployment via s3 bucket:
         s3_deployment.BucketDeployment(
             self,
             "DeployFrontendFiles",
             sources=[
                 s3_deployment.Source.asset("./frontend", exclude=["config.json"]),
-                s3_deployment.Source.data(
+                s3_deployment.Source.data( # .data() should verify args are the same type, then send to s3 and deploy
                     "config.json",
                     json.dumps({
                         "UPLOAD_BUCKET": f"https://{self.uploads_bucket.bucket_name}.s3.amazonaws.com/",
@@ -149,6 +153,7 @@ class TextractProjectStack(Stack):
                     })
                 )
             ],
+            # have to send to frontend_bucket
             destination_bucket=self.frontend_bucket,
         )
 
